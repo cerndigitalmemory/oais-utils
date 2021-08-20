@@ -11,13 +11,14 @@ def get_field_from_json(data, field):
             logging.info(f"\tFound field: {field}")
         return data[field]
     except KeyError:
-        raise Exception(f"'bic-meta.json' does not contain a required field: {field}" )
+        raise Exception(f"'bic-meta.json' does not contain a required field: {field}")
+
 
 # Verify whether AIU and AIC directories exists
 def verify_directory_structure(path):
     logging.info("Verifying directory structure")
-    
-    data_path = os.path.join(path, 'data')
+
+    data_path = os.path.join(path, "data")
     if not os.path.exists(data_path):
         raise Exception("Directory named 'data' does not exist.")
 
@@ -39,10 +40,10 @@ def verify_directory_structure(path):
                 empty = False
                 if "bic-meta.json" in sub:
                     is_aic = True
-            
+
             if empty:
                 raise Exception(f"Empty directory found: {dir_path}")
-            
+
             if is_aic:
                 aic_folder = dir_path
                 logging.info(f"\tFound AIC file directory: {dir_path}")
@@ -51,14 +52,15 @@ def verify_directory_structure(path):
 
     if not aic_folder:
         raise Exception("AIC directory was not found.")
-    
+
     return aic_folder
+
 
 # Check whether bic-meta.json contains the required fields
 def validate_bic_meta(path, aic_folder):
     logging.info("Validating bic-meta.json")
     try:
-        with open(os.path.join(aic_folder, 'bic-meta.json')) as json_file:
+        with open(os.path.join(aic_folder, "bic-meta.json")) as json_file:
             data = json.load(json_file)
 
             required_fields = ["metadataFile_upstream", "contentFiles"]
@@ -68,20 +70,21 @@ def validate_bic_meta(path, aic_folder):
     except FileNotFoundError:
         raise Exception("bic-meta.json file not found.")
 
+
 # Validate data according to the CERN AIP specification
 def validate_aip(path):
     logging.basicConfig(level=20, format="%(message)s")
     logging.info("Starting validation")
 
-    try:        
+    try:
         aic_folder = verify_directory_structure(path)
 
         validate_bic_meta(path, aic_folder)
 
         logging.info("Validation ended successfully.")
-        
-        return {"status" : 0, "errormsg": None}
+
+        return {"status": 0, "errormsg": None}
     except Exception as e:
         logging.error(f"Validation failed with error: {e}")
-        
-        return {"status" : 1, "errormsg": e}
+
+        return {"status": 1, "errormsg": e}
