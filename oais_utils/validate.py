@@ -33,28 +33,41 @@ def verify_directory_structure(path):
         raise Exception("Directory named 'data' does not exist.")
 
     sip_folder = None
+    content_flag = False
+    meta_flag = False
 
-    for dir in os.listdir(data_path):
-        logging.info("Verifying data/content folder..")
-        if os.path.isdir(os.path.join(data_path, "content")):
+    for directory in os.listdir(data_path):
+        print(directory, data_path)
+        logging.info("Verifying data folder contents..")
+        content_folder = os.path.join(data_path, "content")
+        print(content_folder)
+        if directory == "content":
             logging.info("Content folder exists..")
-        logging.info("Verifying data/meta folder..")
-        dir_path = os.path.join(data_path, "meta")
-        if os.path.isdir(dir_path):
-            logging.info("Meta folder exists..")
+            content_flag = True
 
-            for sub in os.listdir(dir_path):
+        meta_folder = os.path.join(data_path, "meta")
+        if directory == "meta":
+            is_sip = False
+            logging.info("Meta folder exists..")
+            for sub in os.listdir(meta_folder):
                 if "sip.json" in sub:
                     is_sip = True
 
             if is_sip:
-                sip_folder = dir_path
+                sip_folder = directory
                 logging.info(f"\tFound SIP file directory: {sip_folder}")
             else:
                 raise Exception(f"Empty directory found: {dir_path}")
+        else:
+            raise Exception(f"Meta folder does not exist in {directory}")
 
     if not sip_folder:
-        raise Exception("sip directory was not found.")
+        raise Exception("Sip directory was not found.")
+
+    if not content_flag:
+        raise Exception(f"Content folder does not exist in {data_path}")
+    if not meta_flag:
+        raise Exception(f"Mefolder does not exist in {data_path}")
 
     return sip_folder
 
@@ -88,7 +101,7 @@ def validate_sip_folder(path):
 
         sip_folder = verify_directory_structure(path)
 
-        validate_sip(path, sip_folder)
+        validate_sip(sip_folder)
 
         logging.info("Validation ended successfully.")
 
