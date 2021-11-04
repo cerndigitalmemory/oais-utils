@@ -24,7 +24,7 @@ def verify_bag(path):
         raise Exception(f"Bag validation error")
 
 
-# Verify whether AIU and SIP directories exists
+# Verify whether SIP directory exists
 def verify_directory_structure(path):
     logging.info("Verifying directory structure")
 
@@ -44,18 +44,14 @@ def verify_directory_structure(path):
             logging.info("Meta folder exists..")
 
             for sub in os.listdir(dir_path):
-                empty = False
                 if "sip.json" in sub:
                     is_sip = True
-
-            if empty:
-                raise Exception(f"Empty directory found: {dir_path}")
 
             if is_sip:
                 sip_folder = dir_path
                 logging.info(f"\tFound SIP file directory: {sip_folder}")
             else:
-                logging.info(f"\tFound AIU file directory: {dir_path}")
+                raise Exception(f"Empty directory found: {dir_path}")
 
     if not sip_folder:
         raise Exception("sip directory was not found.")
@@ -64,7 +60,7 @@ def verify_directory_structure(path):
 
 
 # Check whether sip.json contains the required fields
-def validate_sip(path, sip_folder):
+def validate_sip(sip_folder):
     logging.info("Validating sip.json")
     try:
 
@@ -81,7 +77,7 @@ def validate_sip(path, sip_folder):
 
 
 # Validate data according to SIP specification
-def validate_aip(path):
+def validate_sip_folder(path):
     logging.basicConfig(level=20, format="%(message)s")
     logging.info("Starting validation")
 

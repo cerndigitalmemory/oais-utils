@@ -29,5 +29,5 @@ pip install -e .
 
 ```python
 import oais_utils
-oais_utils.validate.validate_aip("../bagit-create/bagitexport::cds::2751237")
+oais_utils.validate.validate_sip_folder("../bagit-create/bagitexport::cds::2751237")
 ```
