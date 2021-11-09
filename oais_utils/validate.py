@@ -46,15 +46,15 @@ def verify_directory_structure(path):
 
 
 # Check whether sip.json contains the required fields
-def validate_sip(sip_folder):
+def validate_sip(sip_folder, schema):
     logging.info("Validating sip.json")
     try:
 
         with open(os.path.join(sip_folder, "sip.json")) as json_file:
             data = json.load(json_file)
 
-        # Get draft0 from draft function
-        schema = draft("draft0")
+        # Get draft0 from draft function.
+        schema = draft()
 
         validate(instance=data, schema=schema)
 
@@ -63,7 +63,7 @@ def validate_sip(sip_folder):
 
 
 # Validate data according to SIP specification
-def validate_sip_folder(path):
+def validate_sip_folder(path, schema="draft1"):
     logging.basicConfig(level=20, format="%(message)s")
     logging.info("Starting validation")
 
@@ -74,7 +74,7 @@ def validate_sip_folder(path):
 
         sip_folder = verify_directory_structure(path)
 
-        validate_sip(sip_folder)
+        validate_sip(sip_folder, schema)
 
         logging.info("Validation ended successfully.")
 

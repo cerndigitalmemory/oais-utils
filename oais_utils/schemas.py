@@ -4,12 +4,7 @@ import logging
 
 # This function gets the json drafts (now from the schemas folder later from a git source) and returns a dictionary with the values and paths
 def get_draft_dict():
-    json_drafts = {}
-    json_list = os.listdir("schemas")
-    for i in range(len(json_list)):
-        key = "draft" + str(i)
-        value = os.path.join("schemas", json_list[i])
-        json_drafts[key] = value
+    json_drafts = {"draft1": "schemas/sip-schema-d1.json"}
     return json_drafts
 
 
