@@ -14,11 +14,11 @@ def verify_folder_exists(path):
 
 
 # Verify bag
-def verify_bag(path):
+def verify_bag(path, is_dry=False):
     bag = bagit.Bag(path)
     valid = False
     try:
-        valid = bag.validate()
+        valid = bag.validate(fast=is_dry)
     except bagit.BagValidationError as err:
         print(f"Bag validation failed: {err}")
     if not valid:
@@ -79,10 +79,17 @@ def validate_contents(path, sip_file):
                         logging.info(f"\tFile in path: {bagpath} exists")
                     else:
                         raise Exception(f"File in path: {bagpath} does not exist")
+            return False
         except:
             raise Exception("Error with the contentFiles")
     else:
-        logging.info(f"\tThis is a dry_run. No contents to validate")
+        logging.info(f"This is a dry_run bag. Searching for fetch.txt...")
+        # Check if fetch.txt is actually there
+        if os.path.isfile(os.path.join(path, "fetch.txt")):
+            logging.info(f"\tSuccessful")
+        else:
+            raise Exception(f"\tfetch.txt was not found inside {path}")
+        return True
 
 
 # Validate data according to SIP specification
@@ -97,9 +104,9 @@ def validate_sip_folder(path, schema="draft1"):
 
         sip_file = validate_sip(path, schema)
 
-        validate_contents(path, sip_file)
+        is_dry = validate_contents(path, sip_file)
 
-        verify_bag(path)
+        verify_bag(path, is_dry)
 
         logging.info("Validation ended successfully.")
 
