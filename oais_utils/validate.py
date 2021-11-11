@@ -2,34 +2,46 @@ import logging
 import json
 import os
 import bagit
-from jsonschema import validate
-from .schemas import draft
+import jsonschema
+import oais_utils
 
 
-# Check if folder exists
 def check_folder_exists(path):
+    """
+    Check if folder provided exists
+    """
     logging.info(f"Verifying if folder {path} exists.")
     if not os.path.exists(path):
         raise Exception(f"Directory {path} does not exist.")
+    return True
 
 
-# Verify bag
-def validate_bagit(path, is_dry=False):
+def validate_bagit(path, sip_json={}):
     """
-    Run formal BagIt validation against the provided folder
+    Run formal BagIt validation against the provided folder.
+    If sip JSON is not provided, then it is retrieved using the get_manifest function.
     """
+    if sip_json == {}:
+        sip_json = get_manifest(path)
+
+    is_dry = sip_json["audit"][0]["tool"]["params"]["dry_run"]
+
     bag = bagit.Bag(path)
     try:
         bag.validate()
     except bagit.BagValidationError as e:
         for d in e.details:
             if isinstance(d, bagit.FileMissing):
+                # If FileisMissing error occurs and is a dry run file, then return True
                 if not is_dry:
                     raise Exception(
                         "%s exists in manifest but was not found on filesystem"
                     ) % (d.path)
+                else:
+                    return True
     except:
         raise Exception(f"Bag validation error")
+    return True
 
 
 def verify_directory_structure(path, dirlist):
@@ -47,38 +59,41 @@ def verify_directory_structure(path, dirlist):
             return True
 
 
-# Check whether sip.json contains the required fields
-def validate_sip_manifest(path, schema="draft1"):
+def validate_sip_manifest(sip_json, schema="draft1"):
+    """
+    Check whether sip.json contains the required fields
+    """
     logging.info("Validating sip.json")
-    
-    # TODO: read sip.json from path/content/meta/sip.json (always)
 
     # JSON schema against which we validate our instance
-    json_schema = draft(schema)
+    json_schema = oais_utils.schemas()[schema]
 
-    # Validate 
-    try: 
-        jsonschema.validate(instance=data, schema=check_schema)
+    # Validates the sip JSON against the schema
+    try:
+        jsonschema.validate(instance=json_schema, schema=sip_json)
 
         logging.info(f"\tValidated successfully against the {schema}")
         return True
 
-        except:
-            logging.info("Sip validation failed.")
+    except:
+        logging.info("Sip validation failed.")
 
 
-# Check if the content folder exists and contains all the files
-def validate_contents(path, sip_manifest_path="content/meta/sip.json"):
+def validate_contents(path, sip_json={}):
+    """
+    Validates if the contents mentioned in the sip JSON folder exist in the contents folder.
+    If sip JSON is not provided, then it is retrieved using the get_manifest function.
+    """
     logging.info("Validate contents folder")
 
-    with open(sip_file) as json_file:
-        data = json.load(json_file)
+    if sip_json == {}:
+        sip_json = get_manifest(path)
 
-    is_dry = data["audit"][0]["tool"]["params"]["dry_run"]
+    is_dry = sip_json["audit"][0]["tool"]["params"]["dry_run"]
 
     if not is_dry:
         try:
-            content_files = data["contentFiles"]
+            content_files = sip_json["contentFiles"]
             for file in content_files:
                 bagpath = file["bagpath"]
                 downloaded = file["downloaded"]
@@ -88,7 +103,7 @@ def validate_contents(path, sip_manifest_path="content/meta/sip.json"):
                         logging.info(f"\tFile in path: {bagpath} exists")
                     else:
                         raise Exception(f"File in path: {bagpath} does not exist")
-            return False
+            return True
         except:
             raise Exception("Error with the contentFiles")
     else:
@@ -101,36 +116,49 @@ def validate_contents(path, sip_manifest_path="content/meta/sip.json"):
         return True
 
 
+def get_manifest(path, sip_manifest_path="data/meta/sip.json"):
+    """
+    Retrieves the manifest file from the sip manifest path.
+    """
+    logging.info(f"Retrieving Sip.json...")
+    sip_location = os.path.join(path, sip_manifest_path)
+    try:
+        with open(sip_location) as json_file:
+            sip_json = json.load(json_file)
+            return sip_json
+    except:
+        logging.info(f"Sip.json was not found inside {sip_location}")
+
+
 # Validate data according to SIP specification
-def validate_sip(
-    path, schema="draft1"
-):
+def validate_sip(path, schema="draft1"):
     logging.basicConfig(level=20, format="%(message)s")
     logging.info("Starting validation")
 
     # Expected directory structure of the SIP
-    dirlist=["data", "data/content", "data/meta"]
+    dirlist = ["data", "data/content", "data/meta"]
 
     try:
-        verify_folder_exists(path)
+        check_folder_exists(path)
 
         verify_directory_structure(path, dirlist)
 
+        # Gets the sip.json from the content/meta folder
         sip_json = get_manifest(path)
 
         # Check if provided sip.json validates against the schema
-        validate_sip_manifest(path, schema, sip_json)
+        validate_sip_manifest(sip_json, schema)
 
         # Check if the SIP is a valid BagIt
-        validate_bagit(path, is_dry)
+        validate_bagit(path, sip_json)
 
         # Check if every file mentioned in the manifest is there
-        validate_contents(path)
+        validate_contents(path, sip_json)
 
         logging.info("Validation ended successfully.")
 
         return True
-    
+
     except Exception as e:
         logging.error(f"Validation failed with error: {e}")
 
