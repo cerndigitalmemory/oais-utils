@@ -97,14 +97,16 @@ def validate_contents(path, sip_file):
 
 
 # Validate data according to SIP specification
-def validate_sip_folder(path, schema="draft1"):
+def validate_sip_folder(
+    path, schema="draft1", dirlist=["data", "data/content", "data/meta"]
+):
     logging.basicConfig(level=20, format="%(message)s")
     logging.info("Starting validation")
 
     try:
         verify_folder_exists(path)
 
-        verify_directory_structure(path, dirlist=["data", "data/content", "data/meta"])
+        verify_directory_structure(path, dirlist)
 
         sip_file = validate_sip(path, schema)
 
