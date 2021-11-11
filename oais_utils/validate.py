@@ -3,7 +3,7 @@ import json
 import os
 import bagit
 from jsonschema import validate
-import schemas
+from .schemas import draft
 
 
 # Verify if folder exists
@@ -16,12 +16,16 @@ def verify_folder_exists(path):
 # Verify bag
 def verify_bag(path, is_dry=False):
     bag = bagit.Bag(path)
-    valid = False
     try:
-        valid = bag.validate(fast=is_dry)
-    except bagit.BagValidationError as err:
-        print(f"Bag validation failed: {err}")
-    if not valid:
+        bag.validate()
+    except bagit.BagValidationError as e:
+        for d in e.details:
+            if isinstance(d, bagit.FileMissing):
+                if not is_dry:
+                    raise Exception(
+                        "%s exists in manifest but was not found on filesystem"
+                    ) % (d.path)
+    except:
         raise Exception(f"Bag validation error")
 
 
@@ -47,15 +51,15 @@ def validate_sip(path, schema, sip_json_name="sip.json"):
                     data = json.load(json_file)
 
                 # Get the json as a from draft function.
-                check_schema = schemas.draft(schema)
+                check_schema = draft(schema)
 
                 validate(instance=data, schema=check_schema)
 
                 logging.info(f"\tValidated successfully against the {schema}")
                 return sip_file
 
-    except Exception:
-        raise Exception(f"SIP Validation failed")
+    except:
+        logging.info("Sip validation failed.")
 
 
 # Check if the content folder exists and contains all the files

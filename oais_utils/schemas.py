@@ -1,10 +1,10 @@
-import os
 import json
 import logging
+import os
 
 # This function gets the json drafts (now from the schemas folder later from a git source) and returns a dictionary with the values and paths
 def get_draft_dict():
-    json_drafts = {"draft1": "schemas/sip-schema-d1.json"}
+    json_drafts = {"draft1": "oais_utils/schemas/sip-schema-d1.json"}
     return json_drafts
 
 
@@ -25,6 +25,8 @@ def draft(draft_version):
         path = drafts[draft_version]
         with open(path) as f:
             draftedJSON = json.load(f)
+            logging.info(f"/t{draft_version} found successfully")
+
     except:
         raise Exception(f"Version {draft_version} was not found!")
     return draftedJSON
