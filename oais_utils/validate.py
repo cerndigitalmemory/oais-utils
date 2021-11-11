@@ -6,15 +6,18 @@ from jsonschema import validate
 from .schemas import draft
 
 
-# Verify if folder exists
-def verify_folder_exists(path):
+# Check if folder exists
+def check_folder_exists(path):
     logging.info(f"Verifying if folder {path} exists.")
     if not os.path.exists(path):
         raise Exception(f"Directory {path} does not exist.")
 
 
 # Verify bag
-def verify_bag(path, is_dry=False):
+def validate_bagit(path, is_dry=False):
+    """
+    Run formal BagIt validation against the provided folder
+    """
     bag = bagit.Bag(path)
     try:
         bag.validate()
@@ -30,6 +33,9 @@ def verify_bag(path, is_dry=False):
 
 
 def verify_directory_structure(path, dirlist):
+    """
+    Given a list of relative paths, check if they exist in the given folder
+    """
     logging.info("Verifying directory structure")
     for directory in dirlist:
         dir_path = os.path.join(path, directory)
@@ -38,32 +44,31 @@ def verify_directory_structure(path, dirlist):
             raise Exception(f"Directory {dir_path} does not exist.")
         else:
             logging.info(f"\tSuccessful")
+            return True
 
 
 # Check whether sip.json contains the required fields
-def validate_sip(path, schema, sip_json_name="sip.json"):
+def validate_sip_manifest(path, schema="draft1"):
     logging.info("Validating sip.json")
-    try:
-        for root, dirs, files in os.walk(path):
-            if sip_json_name in files:
-                sip_file = os.path.join(root, sip_json_name)
-                with open(sip_file) as json_file:
-                    data = json.load(json_file)
+    
+    # TODO: read sip.json from path/content/meta/sip.json (always)
 
-                # Get the json as a from draft function.
-                check_schema = draft(schema)
+    # JSON schema against which we validate our instance
+    json_schema = draft(schema)
 
-                validate(instance=data, schema=check_schema)
+    # Validate 
+    try: 
+        jsonschema.validate(instance=data, schema=check_schema)
 
-                logging.info(f"\tValidated successfully against the {schema}")
-                return sip_file
+        logging.info(f"\tValidated successfully against the {schema}")
+        return True
 
-    except:
-        logging.info("Sip validation failed.")
+        except:
+            logging.info("Sip validation failed.")
 
 
 # Check if the content folder exists and contains all the files
-def validate_contents(path, sip_file):
+def validate_contents(path, sip_manifest_path="content/meta/sip.json"):
     logging.info("Validate contents folder")
 
     with open(sip_file) as json_file:
@@ -97,27 +102,36 @@ def validate_contents(path, sip_file):
 
 
 # Validate data according to SIP specification
-def validate_sip_folder(
-    path, schema="draft1", dirlist=["data", "data/content", "data/meta"]
+def validate_sip(
+    path, schema="draft1"
 ):
     logging.basicConfig(level=20, format="%(message)s")
     logging.info("Starting validation")
+
+    # Expected directory structure of the SIP
+    dirlist=["data", "data/content", "data/meta"]
 
     try:
         verify_folder_exists(path)
 
         verify_directory_structure(path, dirlist)
 
-        sip_file = validate_sip(path, schema)
+        sip_json = get_manifest(path)
 
-        is_dry = validate_contents(path, sip_file)
+        # Check if provided sip.json validates against the schema
+        validate_sip_manifest(path, schema, sip_json)
 
-        verify_bag(path, is_dry)
+        # Check if the SIP is a valid BagIt
+        validate_bagit(path, is_dry)
+
+        # Check if every file mentioned in the manifest is there
+        validate_contents(path)
 
         logging.info("Validation ended successfully.")
 
-        return {"status": 0, "errormsg": None}
+        return True
+    
     except Exception as e:
         logging.error(f"Validation failed with error: {e}")
 
-        return {"status": 1, "errormsg": e}
+        return False
