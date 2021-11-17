@@ -8,7 +8,7 @@ import oais_utils
 
 def check_folder_exists(path):
     """
-    Check if folder provided exists
+    Check if the provided path resolves to a folder
     """
     logging.info(f"Verifying if folder {path} exists.")
     if not os.path.exists(path):
@@ -19,7 +19,8 @@ def check_folder_exists(path):
 def validate_bagit(path, sip_json={}):
     """
     Run formal BagIt validation against the provided folder.
-    If sip JSON is not provided, then it is retrieved using the get_manifest function.
+    A manifest is required to understand if it's a "lightweight" SIP
+    and make the validation pass when file are missing
     """
     if sip_json == {}:
         sip_json = get_manifest(path)
@@ -61,7 +62,7 @@ def verify_directory_structure(path, dirlist):
 
 def validate_sip_manifest(sip_json, schema="draft1"):
     """
-    Check whether sip.json contains the required fields
+    Validate the sip_json against the JSON schema with the given name
     """
     logging.info("Validating sip.json")
 
@@ -81,7 +82,7 @@ def validate_sip_manifest(sip_json, schema="draft1"):
 
 def validate_contents(path, sip_json={}):
     """
-    Validates if the contents mentioned in the sip JSON folder exist in the contents folder.
+    Validates if the files mentioned in the SIP manifest exist in the contents folder.
     If sip JSON is not provided, then it is retrieved using the get_manifest function.
     """
     logging.info("Validate contents folder")
@@ -118,7 +119,8 @@ def validate_contents(path, sip_json={}):
 
 def get_manifest(path, sip_manifest_path="data/meta/sip.json"):
     """
-    Retrieves the manifest file from the sip manifest path.
+    Retrieve the SIP manifest and read it as JSON
+    from the provided path
     """
     logging.info(f"Retrieving Sip.json...")
     sip_location = os.path.join(path, sip_manifest_path)
@@ -132,6 +134,13 @@ def get_manifest(path, sip_manifest_path="data/meta/sip.json"):
 
 # Validate data according to SIP specification
 def validate_sip(path, schema="draft1"):
+    """
+    Validate the provided folder as a CERN SIP:
+    - Checks the directory structure
+    - Validate the sip.json (manifest file) against the JSON schema
+    - Validate the SIP folder as a BagIt
+    - Checks if every file mentioned in the manifest is provided
+    """
     logging.basicConfig(level=20, format="%(message)s")
     logging.info("Starting validation")
 
@@ -141,6 +150,7 @@ def validate_sip(path, schema="draft1"):
     try:
         check_folder_exists(path)
 
+        # Check directory structure
         verify_directory_structure(path, dirlist)
 
         # Gets the sip.json from the content/meta folder
@@ -154,8 +164,6 @@ def validate_sip(path, schema="draft1"):
 
         # Check if every file mentioned in the manifest is there
         validate_contents(path, sip_json)
-
-        logging.info("Validation ended successfully.")
 
         return True
 
