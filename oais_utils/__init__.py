@@ -1,8 +1,10 @@
+import oais_utils.validate
+import os.path
 import json
 
-# List available JSON schemas
-# schema_name -> schema_path
-json_schemas_paths = {"draft1": "oais_utils/schemas/sip-schema-d1.json"}
+# Make the json schemas paths relative to the __init__.py file location so when called externally the schemas folder will be found (e.g. OAIS Platform)
+relative_path = os.path.join(os.path.dirname(__file__), "schemas/sip-schema-d1.json")
+json_schemas_paths = {"draft1": relative_path}
 
 
 def schemas():
