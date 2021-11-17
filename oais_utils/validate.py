@@ -16,16 +16,12 @@ def check_folder_exists(path):
     return True
 
 
-def validate_bagit(path, sip_json={}):
+def validate_bagit(path, is_dry=False):
     """
-    Run formal BagIt validation against the provided folder.
-    A manifest is required to understand if it's a "lightweight" SIP
-    and make the validation pass when file are missing
+    Run BagIt validation against the provided folder.
+    If dry_run is set, the bag is considered a "lightweight" one i.e.
+    file missing errors won't fail the validation
     """
-    if sip_json == {}:
-        sip_json = get_manifest(path)
-
-    is_dry = sip_json["audit"][0]["tool"]["params"]["dry_run"]
 
     bag = bagit.Bag(path)
     try:
@@ -133,7 +129,7 @@ def get_manifest(path, sip_manifest_path="data/meta/sip.json"):
 
 
 # Validate data according to SIP specification
-def validate_sip(path, schema="draft1"):
+def validate_sip(path, schema="draft1", logginglevel=50):
     """
     Validate the provided folder as a CERN SIP:
     - Checks the directory structure
@@ -141,8 +137,7 @@ def validate_sip(path, schema="draft1"):
     - Validate the SIP folder as a BagIt
     - Checks if every file mentioned in the manifest is provided
     """
-    logging.basicConfig(level=20, format="%(message)s")
-    logging.info("Starting validation")
+    logging.basicConfig(level=logginglevel, format="%(message)s")
 
     # Expected directory structure of the SIP
     dirlist = ["data", "data/content", "data/meta"]
@@ -159,8 +154,12 @@ def validate_sip(path, schema="draft1"):
         # Check if provided sip.json validates against the schema
         validate_sip_manifest(sip_json, schema)
 
+        # Check if the SIP package is a "lightweight" one,
+        # (no content files included)
+        is_dry = sip_json["audit"][0]["tool"]["params"]["dry_run"]
+
         # Check if the SIP is a valid BagIt
-        validate_bagit(path, sip_json)
+        validate_bagit(path, is_dry)
 
         # Check if every file mentioned in the manifest is there
         validate_contents(path, sip_json)
