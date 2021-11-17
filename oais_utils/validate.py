@@ -1,90 +1,172 @@
 import logging
 import json
 import os
+import bagit
+import jsonschema
+import oais_utils
 
-# Extract given field from json dictonary
-def get_field_from_json(data, field):
+
+def check_folder_exists(path):
+    """
+    Check if the provided path resolves to a folder
+    """
+    logging.info(f"Verifying if folder {path} exists.")
+    if not os.path.exists(path):
+        raise Exception(f"Directory {path} does not exist.")
+    return True
+
+
+def validate_bagit(path, is_dry=False):
+    """
+    Run BagIt validation against the provided folder.
+    If dry_run is set, the bag is considered a "lightweight" one i.e.
+    file missing errors won't fail the validation
+    """
+
+    bag = bagit.Bag(path)
     try:
-        if not data[field]:
-            raise Exception(f"Required 'bic-meta.json' field: {field} is empty.")
-        else:
-            logging.info(f"\tFound field: {field}")
-        return data[field]
-    except KeyError:
-        raise Exception(f"'bic-meta.json' does not contain a required field: {field}")
+        bag.validate()
+    except bagit.BagValidationError as e:
+        for d in e.details:
+            if isinstance(d, bagit.FileMissing):
+                # If FileisMissing error occurs and is a dry run file, then return True
+                if not is_dry:
+                    raise Exception(
+                        "%s exists in manifest but was not found on filesystem"
+                    ) % (d.path)
+                else:
+                    return True
+    except:
+        raise Exception(f"Bag validation error")
+    return True
 
 
-# Verify whether AIU and AIC directories exists
-def verify_directory_structure(path):
+def verify_directory_structure(path, dirlist):
+    """
+    Given a list of relative paths, check if they exist in the given folder
+    """
     logging.info("Verifying directory structure")
-
-    data_path = os.path.join(path, "data")
-    if not os.path.exists(data_path):
-        raise Exception("Directory named 'data' does not exist.")
-
-    id = None
-    aic_folder = None
-    for dir in os.listdir(data_path):
-        dir_path = os.path.join(data_path, dir)
-        if os.path.isdir(dir_path):
-            data = dir.split("::")
-            current_id = data[0]
-            if not id:
-                id = current_id
-            elif id != current_id:
-                raise Exception("Ids does not match in directory names.")
-
-            is_aic = False
-            empty = True
-            for sub in os.listdir(dir_path):
-                empty = False
-                if "bic-meta.json" in sub:
-                    is_aic = True
-
-            if empty:
-                raise Exception(f"Empty directory found: {dir_path}")
-
-            if is_aic:
-                aic_folder = dir_path
-                logging.info(f"\tFound AIC file directory: {dir_path}")
-            else:
-                logging.info(f"\tFound AIU file directory: {dir_path}")
-
-    if not aic_folder:
-        raise Exception("AIC directory was not found.")
-
-    return aic_folder
+    for directory in dirlist:
+        dir_path = os.path.join(path, directory)
+        logging.info(f"Checking if {dir_path} exists")
+        if not os.path.exists(dir_path):
+            raise Exception(f"Directory {dir_path} does not exist.")
+        else:
+            logging.info(f"\tSuccessful")
+            return True
 
 
-# Check whether bic-meta.json contains the required fields
-def validate_bic_meta(path, aic_folder):
-    logging.info("Validating bic-meta.json")
+def validate_sip_manifest(sip_json, schema="draft1"):
+    """
+    Validate the sip_json against the JSON schema with the given name
+    """
+    logging.info("Validating sip.json")
+
+    # JSON schema against which we validate our instance
+    json_schema = oais_utils.schemas()[schema]
+
+    # Validates the sip JSON against the schema
     try:
-        with open(os.path.join(aic_folder, "bic-meta.json")) as json_file:
-            data = json.load(json_file)
+        jsonschema.validate(instance=json_schema, schema=sip_json)
 
-            required_fields = ["metadataFile_upstream", "contentFiles"]
-            for field in required_fields:
-                get_field_from_json(data, field)
+        logging.info(f"\tValidated successfully against the {schema}")
+        return True
 
-    except FileNotFoundError:
-        raise Exception("bic-meta.json file not found.")
+    except:
+        logging.info("Sip validation failed.")
 
 
-# Validate data according to the CERN AIP specification
-def validate_aip(path):
-    logging.basicConfig(level=20, format="%(message)s")
-    logging.info("Starting validation")
+def validate_contents(path, sip_json={}):
+    """
+    Validates if the files mentioned in the SIP manifest exist in the contents folder.
+    If sip JSON is not provided, then it is retrieved using the get_manifest function.
+    """
+    logging.info("Validate contents folder")
+
+    if sip_json == {}:
+        sip_json = get_manifest(path)
+
+    is_dry = sip_json["audit"][0]["tool"]["params"]["dry_run"]
+
+    if not is_dry:
+        try:
+            content_files = sip_json["contentFiles"]
+            for file in content_files:
+                bagpath = file["bagpath"]
+                downloaded = file["downloaded"]
+                if downloaded:
+                    full_bagpath = os.path.join(path, bagpath)
+                    if os.path.exists(full_bagpath):
+                        logging.info(f"\tFile in path: {bagpath} exists")
+                    else:
+                        raise Exception(f"File in path: {bagpath} does not exist")
+            return True
+        except:
+            raise Exception("Error with the contentFiles")
+    else:
+        logging.info(f"This is a dry_run bag. Searching for fetch.txt...")
+        # Check if fetch.txt is actually there
+        if os.path.isfile(os.path.join(path, "fetch.txt")):
+            logging.info(f"\tSuccessful")
+        else:
+            raise Exception(f"\tfetch.txt was not found inside {path}")
+        return True
+
+
+def get_manifest(path, sip_manifest_path="data/meta/sip.json"):
+    """
+    Retrieve the SIP manifest and read it as JSON
+    from the provided path
+    """
+    logging.info(f"Retrieving Sip.json...")
+    sip_location = os.path.join(path, sip_manifest_path)
+    try:
+        with open(sip_location) as json_file:
+            sip_json = json.load(json_file)
+            return sip_json
+    except:
+        logging.info(f"Sip.json was not found inside {sip_location}")
+
+
+# Validate data according to SIP specification
+def validate_sip(path, schema="draft1", logginglevel=50):
+    """
+    Validate the provided folder as a CERN SIP:
+    - Checks the directory structure
+    - Validate the sip.json (manifest file) against the JSON schema
+    - Validate the SIP folder as a BagIt
+    - Checks if every file mentioned in the manifest is provided
+    """
+    logging.basicConfig(level=logginglevel, format="%(message)s")
+
+    # Expected directory structure of the SIP
+    dirlist = ["data", "data/content", "data/meta"]
 
     try:
-        aic_folder = verify_directory_structure(path)
+        check_folder_exists(path)
 
-        validate_bic_meta(path, aic_folder)
+        # Check directory structure
+        verify_directory_structure(path, dirlist)
 
-        logging.info("Validation ended successfully.")
+        # Gets the sip.json from the content/meta folder
+        sip_json = get_manifest(path)
 
-        return {"status": 0, "errormsg": None}
+        # Check if provided sip.json validates against the schema
+        validate_sip_manifest(sip_json, schema)
+
+        # Check if the SIP package is a "lightweight" one,
+        # (no content files included)
+        is_dry = sip_json["audit"][0]["tool"]["params"]["dry_run"]
+
+        # Check if the SIP is a valid BagIt
+        validate_bagit(path, is_dry)
+
+        # Check if every file mentioned in the manifest is there
+        validate_contents(path, sip_json)
+
+        return True
+
     except Exception as e:
         logging.error(f"Validation failed with error: {e}")
 
-        return {"status": 1, "errormsg": e}
+        return False

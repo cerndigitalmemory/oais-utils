@@ -28,6 +28,6 @@ pip install -e .
 ## Use
 
 ```python
-import oais_utils
-oais_utils.validate.validate_aip("../bagit-create/bagitexport::cds::2751237")
+from oais_utils import validate
+validate("../bagit-create/bagitexport::cds::2751237")
 ```
