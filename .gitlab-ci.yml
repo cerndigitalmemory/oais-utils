@@ -1,6 +1,7 @@
 image: python:latest
 
 stages:
+  - Test
   - Release
 
 pypi:
@@ -11,3 +12,19 @@ pypi:
         - twine upload dist/*
     only:
         - tags
+
+test:
+  stage: Test
+  image: $IMAGE
+  parallel:
+    matrix:
+      - IMAGE: ["python:3.6", "python:3.7"]
+  script:
+    - pip install -e .
+    - pip install pytest
+    - INDICO_KEY="$INDICO_KEY" python -m pytest --junitxml=path
+  artifacts:
+    when: always
+    reports:
+      junit: ./report.xml
+
