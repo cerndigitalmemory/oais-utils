@@ -33,5 +33,5 @@ setup(
     ],
     packages=find_packages(include=["oais_utils", "oais_utils.*"]),
     include_package_data=True,
-    install_requires=["jsonschema==3.0.2", "bagit==1.8.1", "bagit-create==0.1"],
+    install_requires=["jsonschema==3.0.2", "bagit==1.8.1"],
 )
