@@ -1,8 +1,10 @@
-import logging
 import json
+import logging
 import os
+
 import bagit
 import jsonschema
+
 import oais_utils
 
 
@@ -36,8 +38,8 @@ def validate_bagit(path, is_dry=False):
                     ) % (d.path)
                 else:
                     return True
-    except:
-        raise Exception(f"Bag validation error")
+    except Exception:
+        raise Exception("Bag validation error")
     return True
 
 
@@ -52,7 +54,7 @@ def verify_directory_structure(path, dirlist):
         if not os.path.exists(dir_path):
             raise Exception(f"Directory {dir_path} does not exist.")
         else:
-            logging.info(f"\tSuccessful")
+            logging.info("\tSuccessful")
             return True
 
 
@@ -72,7 +74,7 @@ def validate_sip_manifest(sip_json, schema="draft1"):
         logging.info(f"\tValidated successfully against the {schema}")
         return True
 
-    except:
+    except Exception:
         logging.info("Sip validation failed.")
 
 
@@ -101,13 +103,13 @@ def validate_contents(path, sip_json={}):
                     else:
                         raise Exception(f"File in path: {bagpath} does not exist")
             return True
-        except:
+        except Exception:
             raise Exception("Error with the contentFiles")
     else:
-        logging.info(f"This is a dry_run bag. Searching for fetch.txt...")
+        logging.info("This is a dry_run bag. Searching for fetch.txt...")
         # Check if fetch.txt is actually there
         if os.path.isfile(os.path.join(path, "fetch.txt")):
-            logging.info(f"\tSuccessful")
+            logging.info("\tSuccessful")
         else:
             raise Exception(f"\tfetch.txt was not found inside {path}")
         return True
@@ -118,13 +120,13 @@ def get_manifest(path, sip_manifest_path="data/meta/sip.json"):
     Retrieve the SIP manifest and read it as JSON
     from the provided path
     """
-    logging.info(f"Retrieving Sip.json...")
+    logging.info("Retrieving Sip.json...")
     sip_location = os.path.join(path, sip_manifest_path)
     try:
         with open(sip_location) as json_file:
             sip_json = json.load(json_file)
             return sip_json
-    except:
+    except Exception:
         logging.info(f"Sip.json was not found inside {sip_location}")
 
 
